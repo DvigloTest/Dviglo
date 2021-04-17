@@ -1,3 +1,8 @@
+# Dviglo
+
+Игровой движок Dviglo является форком движка Urho3D. Все коммиты оригинального движка склеены для уменьшения размера репозитория.
+Историю коммитов Urho3D вы можете посмотреть в <https://github.com/Dviglo/Urho3D>.
+
 ![Urho3D logo](https://raw.githubusercontent.com/urho3d/Urho3D/master/bin/Data/Textures/LogoLarge.png)
 
 # Urho3D

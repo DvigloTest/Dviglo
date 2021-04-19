@@ -71,12 +71,6 @@ build/
 /*.project
 /*.workspace
 
-# Gradle project settings
-.gradle
-
-# Android project settings
-/local.properties
-
 # Visual Studio project settings
 /.vs/
 /CMakeSettings.json

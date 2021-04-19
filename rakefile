@@ -27,10 +27,10 @@ task :cmake => [:init] do
   if ENV['CI']
     system 'cmake --version' or abort 'Failed to find CMake'
     if ENV['USE_CCACHE'] && /\[cache clear\]/ =~ `git log --format=%B -n1 2>/dev/null`
-      system 'bash', '-c', 'rm -rf ~/.{ccache,gradle}' or abort 'Failed to clear the build cache'
+      system 'bash', '-c', 'rm -rf ~/.{ccache}' or abort 'Failed to clear the build cache'
     end
   end
-  next if ENV['PLATFORM'] == 'android' || (Dir.exist?("#{build_tree}") and not ARGV.include?('cmake'))
+  next if (Dir.exist?("#{build_tree}") and not ARGV.include?('cmake'))
   script = "script/cmake_#{ENV['GENERATOR']}#{ENV['OS'] ? '.bat' : '.sh'}"
   build_options = /linux|macOS|win/ =~ ENV['PLATFORM'] ? '' : "-D #{ENV['PLATFORM'].upcase}=1"
   File.readlines('script/.build-options').each { |var|
@@ -42,21 +42,12 @@ end
 
 desc 'Clean the build tree'
 task :clean => [:init] do
-  if ENV['PLATFORM'] == 'android'
-    Rake::Task[:gradle].invoke('clean')
-    next
-  end
   system build_target('clean') or abort
 end
 
 desc 'Build the software'
 task :build, [:target] => [:cmake] do |_, args|
   system "ccache -z" if ENV['USE_CCACHE']
-  if ENV['PLATFORM'] == 'android'
-    Rake::Task[:gradle].invoke('build -x test')
-    system "ccache -s" if ENV['USE_CCACHE']
-    next
-  end
   filter = ''
   case ENV['GENERATOR']
   when 'xcode'
@@ -74,10 +65,7 @@ end
 
 desc 'Test the software'
 task :test => [:init] do
-  if ENV['PLATFORM'] == 'android'
-    Rake::Task[:gradle].invoke('test')
-    next
-  elsif ENV['URHO3D_LINT'] == '1'
+  if ENV['URHO3D_LINT'] == '1'
     Rake::Task[:lint].invoke
     next
   elsif ENV['URHO3D_STYLE'] == '1'
@@ -91,36 +79,23 @@ end
 
 desc 'Generate documentation'
 task :doc => [:init] do
-  if ENV['PLATFORM'] == 'android'
-    Rake::Task[:gradle].invoke('documentationZip')
-    next
-  end
   system build_target('doc') or abort
 end
 
 desc 'Install the software'
 task :install, [:prefix] => [:init] do |_, args|
-  if ENV['PLATFORM'] == 'android'
-    Rake::Task[:gradle].invoke('publishToMavenLocal')
-    next
-  end
   wrapper = args[:prefix] && !ENV['OS'] ? "DESTDIR=#{verify_path(args[:prefix])}" : ''
   system build_target('install', wrapper) or abort
 end
 
 desc 'Package build artifact'
 task :package => [:init] do
-  next if ENV['PLATFORM'] == 'android'
   wrapper = /linux|rpi|arm/ =~ ENV['PLATFORM'] && ENV['URHO3D_64BIT'] == '0' ? 'setarch i686' : ''
   system build_target('package', wrapper) or abort
 end
 
 desc 'Publish build artifact'
 task :publish => [:init] do
-  if ENV['PLATFORM'] == 'android'
-    Rake::Task[:gradle].invoke("publish #{/refs\/tags\// =~ ENV['GITHUB_REF'] ? 'bintrayUpload' : ''}")
-    next
-  end
   Rake::Task[$publish_task.to_sym].invoke if $publish_task
 end
 
@@ -255,7 +230,6 @@ task :update_dot_files do
     echo URHO3D_LINT >>script/.build-options && \
     cat script/.build-options <(perl -ne 'while (/([A-Z_]+):.+?/g) {print "$1\n"}' .github/workflows/main.yml) \
       <(perl -ne 'while (/ENV\[\x27(\w+)\x27\]/g) {print "$1\n"}' rakefile) \
-      <(perl -ne 'while (/System.getenv\\("(\w+)"\\)/g) {print "$1\n"}' android/urho3d-lib/build.gradle.kts) \
       |sort |uniq |grep -Ev '^(HOME|PATH)$' >script/.env-file
   } or abort 'Failed to update dot files'
 end
@@ -286,10 +260,6 @@ task :init do
   end
   # The 'ARCH' env-var, when set, has higher precedence than the 'URHO3D_64BIT' env-var
   ENV['URHO3D_64BIT'] = ENV['ARCH'] == '32' ? '0' : '1' if /32|64/ =~ ENV['ARCH']
-end
-
-task :gradle, [:task] do |_, args|
-  system "#{ENV['OS'] ? 'gradlew.bat' : './gradlew'} #{args[:task]} #{ENV['CI'] ? '--console plain' : ''}" or abort
 end
 
 task :lint do
@@ -371,272 +341,16 @@ bin/Data/Textures/Mushroom.dds
 bin/Data/Textures/UrhoIcon.icns
 bin/Data/Textures/UrhoIcon.png
 cmake
-gradle
 script
 app/src/main/cpp/#{name}.cpp <- :urho_app_cpp
 app/src/main/cpp/#{name}.h <- :urho_app_h
-app/src/main/java/io/urho3d/#{name.downcase}/MainActivity.kt <- :main_activity_kt
-#{Dir.chdir('android/launcher-app') { Dir['src/main/res/{drawable,mipmap}*'].map { |it| "app/#{it} <- android/launcher-app/src/main/res" }.join("\n") }}
-app/src/main/res/values/strings.xml <- :strings_xml
-app/src/main/AndroidManifest.xml <- :android_manifest_xml
-app/build.gradle.kts <- :app_build_gradle_kts
 app/CMakeLists.txt <- :app_cmake_lists_txt
-app/proguard-rules.pro <- android/launcher-app
-build.gradle.kts <- :root_build_gradle_kts
 CMakeLists.txt <- :root_cmake_lists_txt
-gradle.properties
-gradlew
-gradlew.bat
 rakefile
-settings.gradle.kts <- :settings_gradle_kts
 .clang-format
 .clang-tidy
 .gitattributes <- :gitattributes
 .gitignore <- :gitignore
-  EOF
-end
-
-def settings_gradle_kts(name)
-  <<-EOF
-rootProject.name = "#{name}"
-include(":app")
-  EOF
-end
-
-def app_build_gradle_kts(name)
-  template = File.readlines('android/launcher-app/build.gradle.kts')
-  sdk_version = first_match(/compileSdkVersion\((\d+)\)/, template)
-  min_sdk_version = first_match(/minSdkVersion\((\d+)\)/, template)
-  aar_version = ENV['CI'] && ENV['PLATFORM'] != 'android' ? 'unknown' : # Skip using gradle all together when on CI, unless for Android build
-                    first_match(/AAR version: (.+)/, `#{ENV['OS'] ? 'gradlew.bat' : './gradlew'} aarVersion 2>#{ENV['OS'] ? 'null' : '/dev/null'}`)
-  type = ENV.fetch('URHO3D_LIB_TYPE', 'STATIC').downcase
-  <<-EOF
-plugins {
-    id("com.android.application")
-    kotlin("android")
-    kotlin("android.extensions")
-}
-
-val kotlinVersion: String by ext
-val ndkSideBySideVersion: String by ext
-val cmakeVersion: String by ext
-val buildStagingDir: String by ext
-
-android {
-    ndkVersion = ndkSideBySideVersion
-    compileSdkVersion(#{sdk_version})
-    defaultConfig {
-        minSdkVersion(#{min_sdk_version})
-        targetSdkVersion(#{sdk_version})
-        applicationId = "io.urho3d.#{name}"
-        versionCode = 1
-        versionName = "1.0"
-        testInstrumentationRunner = "android.support.test.runner.AndroidJUnitRunner"
-        externalNativeBuild {
-            cmake {
-                arguments.apply {
-                    System.getenv("ANDROID_CCACHE")?.let { add("-D ANDROID_CCACHE=$it") }
-                    add("-D JNI_DIR=${project.file(buildStagingDir)}")
-                    // Pass along matching env-vars as CMake build options
-                    addAll(project.file("../script/.build-options")
-                        .readLines()
-                        .mapNotNull { variable -> System.getenv(variable)?.let { "-D $variable=$it" } }
-                    )
-                }
-            }
-        }
-        splits {
-            abi {
-                isEnable = project.hasProperty("ANDROID_ABI")
-                reset()
-                include(
-                    *(project.findProperty("ANDROID_ABI") as String? ?: "")
-                        .split(',')
-                        .toTypedArray()
-                )
-            }
-        }
-    }
-    buildTypes {
-        named("release") {
-            isMinifyEnabled = false
-            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-        }
-    }
-    lintOptions {
-        isAbortOnError = false
-    }
-    externalNativeBuild {
-        cmake {
-            version = cmakeVersion
-            path = project.file("../CMakeLists.txt")
-            setBuildStagingDirectory(buildStagingDir)
-        }
-    }
-    sourceSets {
-        named("main") {
-            assets.srcDir(project.file("../bin"))
-        }
-    }
-}
-
-val urhoReleaseImpl by configurations.creating { isCanBeResolved = true }
-configurations.releaseImplementation.get().extendsFrom(urhoReleaseImpl)
-
-val urhoDebugImpl by configurations.creating { isCanBeResolved = true }
-configurations.debugImplementation.get().extendsFrom(urhoDebugImpl)
-
-dependencies {
-    urhoReleaseImpl("io.urho3d:urho3d-lib-#{type}:#{aar_version}")
-    urhoDebugImpl("io.urho3d:urho3d-lib-#{type}-debug:#{aar_version}")
-    implementation(fileTree(mapOf("dir" to "libs", "include" to listOf("*.jar", "*.aar"))))
-    implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlinVersion")
-    implementation("androidx.core:core-ktx:#{first_match(/"androidx.core:core-ktx:(.+)"/, template)}")
-    implementation("androidx.appcompat:appcompat:#{first_match(/"androidx.appcompat:appcompat:(.+)"/, template)}")
-    implementation("androidx.constraintlayout:constraintlayout:#{first_match(/"androidx.constraintlayout:constraintlayout:(.+)"/, template)}")
-    testImplementation("junit:junit:#{first_match(/"junit:junit:(.+)"/, template)}")
-    androidTestImplementation("androidx.test:runner:#{first_match(/"androidx.test:runner:(.+)"/, template)}")
-    androidTestImplementation("androidx.test.espresso:espresso-core:#{first_match(/"androidx.test.espresso:espresso-core:(.+)"/, template)}")
-}
-
-afterEvaluate {
-    android.buildTypes.forEach { buildType ->
-        val config = buildType.name.capitalize()
-        val unzipTaskName = "unzipJni$config"
-        tasks {
-            "generateJsonModel$config" {
-                dependsOn(unzipTaskName)
-            }
-            register<Copy>(unzipTaskName) {
-                val aar = configurations["urho${config}Impl"].resolve().first { it.name.startsWith("urho3d-lib") }
-                from(zipTree(aar))
-                include("urho3d/**")
-                into(android.externalNativeBuild.cmake.buildStagingDirectory)
-            }
-        }
-    }
-}
-
-tasks {
-    register<Delete>("cleanAll") {
-        dependsOn("clean")
-        delete = setOf(android.externalNativeBuild.cmake.buildStagingDirectory)
-    }
-}
-  EOF
-end
-
-def root_build_gradle_kts(_)
-  template = File.readlines('build.gradle.kts')
-  <<-EOF
-buildscript {
-    extra["kotlinVersion"] = "#{first_match(/extra\["kotlinVersion"\] = "(.+)"/, template)}"
-    val kotlinVersion: String by extra
-    repositories {
-        google()
-        jcenter()
-    }
-    dependencies {
-        classpath("com.android.tools.build:gradle:#{first_match(/"com.android.tools.build:gradle:(.+)"/, template)}")
-        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion")
-    }
-}
-
-val kotlinVersion: String by ext
-
-allprojects {
-    repositories {
-        google()
-        jcenter()
-        // Remove below two repos if you are only using released AAR from JCenter
-        mavenLocal()
-        if (System.getenv("GITHUB_ACTOR") != null && System.getenv("GITHUB_TOKEN") != null) {
-            maven {
-                name = "GitHubPackages"
-                url = uri("https://maven.pkg.github.com/urho3d/Urho3D")
-                credentials {
-                    username = System.getenv("GITHUB_ACTOR")
-                    password = System.getenv("GITHUB_TOKEN")
-                }
-            }
-        }
-    }
-    buildscript {
-        ext {
-            set("kotlinVersion", kotlinVersion)
-            set("ndkSideBySideVersion", "#{first_match(/set\("ndkSideBySideVersion", "(.+)"\)/, template)}")
-            set("cmakeVersion", "#{first_match(/set\("cmakeVersion", "(.+)"\)/, template)}")
-            set("buildStagingDir", "#{first_match(/set\("buildStagingDir", "(.+)"\)/, template)}")
-        }
-    }
-}
-
-tasks {
-    wrapper {
-        distributionType = Wrapper.DistributionType.ALL
-    }
-    "prepareKotlinBuildScriptModel" {
-        listOf("Debug", "Release").forEach {
-          dependsOn(":app:unzipJni$it")
-        }
-    }
-    register<Delete>("clean") {
-        // Clean the build artifacts generated by the Gradle build system only, but keep the buildDir
-        rootProject.buildDir.listFiles { _, name -> name == "intermediates" || name == "kotlin" }?.let {
-            delete = it.toSet()
-        }
-    }
-    register<Delete>("cleanAll") {
-        dependsOn("clean")
-    }
-}
-  EOF
-end
-
-def strings_xml(name)
-  <<-EOF
-<resources>
-    <string name="app_name">#{name}</string>
-</resources>
-  EOF
-end
-
-def android_manifest_xml(name)
-  <<-EOF
-<?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="io.urho3d.#{name.downcase}">
-
-    <application
-        android:allowBackup="true"
-        android:hardwareAccelerated="true"
-        android:icon="@mipmap/ic_launcher"
-        android:label="@string/app_name"
-        android:roundIcon="@mipmap/ic_launcher_round"
-        android:supportsRtl="true">
-        <activity
-            android:name=".MainActivity"
-            android:configChanges="keyboardHidden|orientation|screenSize"
-            android:screenOrientation="landscape"
-            android:theme="@android:style/Theme.NoTitleBar.Fullscreen">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN"/>
-                <category android:name="android.intent.category.LAUNCHER"/>
-            </intent-filter>
-        </activity>
-    </application>
-
-</manifest>
-  EOF
-end
-
-def main_activity_kt(name)
-  <<-EOF
-package io.urho3d.#{name.downcase}
-
-import io.urho3d.UrhoActivity
-
-class MainActivity : UrhoActivity()
   EOF
 end
 
@@ -746,12 +460,6 @@ def gitignore(_)
 # Codelite project settings
 /*.project
 /*.workspace
-
-# Gradle project settings
-/local.properties
-.gradle/
-build/
-.cxx/
 
 # JetBrains IDE project settings
 /.idea/

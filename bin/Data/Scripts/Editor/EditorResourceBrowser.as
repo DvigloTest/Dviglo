@@ -120,7 +120,6 @@ const StringHash EXTENSION_TYPE_FBX(".fbx");
 const StringHash EXTENSION_TYPE_COLLADA(".dae");
 const StringHash EXTENSION_TYPE_BLEND(".blend");
 const StringHash EXTENSION_TYPE_ANGELSCRIPT(".as");
-const StringHash EXTENSION_TYPE_LUASCRIPT(".lua");
 const StringHash EXTENSION_TYPE_HLSL(".hlsl");
 const StringHash EXTENSION_TYPE_GLSL(".glsl");
 const StringHash EXTENSION_TYPE_FRAGMENTSHADER(".frag");
@@ -1206,8 +1205,6 @@ int GetResourceType(StringHash fileType)
         return RESOURCE_TYPE_UNUSABLE;
     else if(fileType == EXTENSION_TYPE_ANGELSCRIPT)
         return RESOURCE_TYPE_SCRIPTFILE;
-    else if(fileType == EXTENSION_TYPE_LUASCRIPT)
-        return RESOURCE_TYPE_SCRIPTFILE;
     else if(fileType == EXTENSION_TYPE_HLSL)
         return RESOURCE_TYPE_UNUSABLE;
     else if(fileType == EXTENSION_TYPE_GLSL)
@@ -1261,8 +1258,6 @@ bool GetExtensionType(String path, StringHash &out fileType)
         fileType = EXTENSION_TYPE_BLEND;
     else if(type == EXTENSION_TYPE_ANGELSCRIPT)
         fileType = EXTENSION_TYPE_ANGELSCRIPT;
-    else if(type == EXTENSION_TYPE_LUASCRIPT)
-        fileType = EXTENSION_TYPE_LUASCRIPT;
     else if(type == EXTENSION_TYPE_HLSL)
         fileType = EXTENSION_TYPE_HLSL;
     else if(type == EXTENSION_TYPE_GLSL)

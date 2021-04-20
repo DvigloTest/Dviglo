@@ -169,7 +169,7 @@ void HandleReloadFinishOrFail(StringHash eventType, VariantMap& eventData)
 {
     Resource@ res = cast<Resource>(GetEventSender());
     // Only refresh inspector when reloading scripts (script attributes may change)
-    if (res !is null && (res.typeName == "ScriptFile" || res.typeName == "LuaFile"))
+    if (res !is null && res.typeName == "ScriptFile")
         attributesFullDirty = true;
 }
 

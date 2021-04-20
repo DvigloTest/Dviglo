@@ -1167,7 +1167,6 @@ void InitResourcePicker()
     // Fill resource picker data
     Array<String> fontFilters = {"*.ttf", "*.otf", "*.fnt", "*.xml", "*.sdf"};
     Array<String> imageFilters = {"*.png", "*.jpg", "*.bmp", "*.tga", "*.hdr"};
-    Array<String> luaFileFilters = {"*.lua", "*.luc"};
     Array<String> scriptFilters = {"*.as", "*.asc"};
     Array<String> soundFilters = {"*.wav","*.ogg"};
     Array<String> textureFilters = {"*.dds", "*.png", "*.jpg", "*.bmp", "*.tga", "*.ktx", "*.pvr", "*.hdr"};
@@ -1178,7 +1177,6 @@ void InitResourcePicker()
     resourcePickers.Push(ResourcePicker("Animation", "*.ani", ACTION_PICK | ACTION_TEST));
     resourcePickers.Push(ResourcePicker("Font", fontFilters));
     resourcePickers.Push(ResourcePicker("Image", imageFilters));
-    resourcePickers.Push(ResourcePicker("LuaFile", luaFileFilters));
     resourcePickers.Push(ResourcePicker("Material", materialFilters, ACTION_PICK | ACTION_OPEN | ACTION_EDIT));
     resourcePickers.Push(ResourcePicker("Model", "*.mdl", ACTION_PICK));
     resourcePickers.Push(ResourcePicker("ParticleEffect", "*.xml", ACTION_PICK | ACTION_OPEN | ACTION_EDIT));

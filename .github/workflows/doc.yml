@@ -70,7 +70,7 @@ jobs:
           cd ..
         else
           # Качаем репозиторий
-          git clone https://github.com/Dviglo/Dviglo DvigloRepository
+          git clone https://github.com/DvigloTest/Dviglo DvigloRepository
         fi
 
     - name: Генерируем документацию
@@ -101,10 +101,10 @@ jobs:
           then
             echo "========== Не удалось обновить репозиторий, перезакачиваем целиком"
             rm -r SiteRepository # Удаляем папку
-            git clone "https://${{ secrets.DVIGLO_SITE_TOKEN }}@github.com/Dviglo/dviglo.github.io" SiteRepository # Качаем репозиторий
+            git clone "https://${{ secrets.DVIGLO_TEST_SITE_TOKEN }}@github.com/DvigloTest/dviglotest.github.io" SiteRepository # Качаем репозиторий
           fi
         else
-          git clone "https://${{ secrets.DVIGLO_SITE_TOKEN }}@github.com/Dviglo/dviglo.github.io" SiteRepository # Качаем репозиторий
+          git clone "https://${{ secrets.DVIGLO_TEST_SITE_TOKEN }}@github.com/DvigloTest/dviglotest.github.io" SiteRepository # Качаем репозиторий
         fi
 
         rm -rf SiteRepository/Documentation # Удаляем директорию, если существует

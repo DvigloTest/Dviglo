@@ -124,6 +124,7 @@ jobs:
         cp -R DvigloRepository/Docs/Markdown MarkdownSrc
         cp -R DvigloSiteGenerator/___res MarkdownSrc
         ./Result/DvigloSiteGenerator MarkdownSrc MarkdownDst
+        rm -rf SiteRepository/Markdown # Удаляем директорию, если существует
         cp -R MarkdownDst SiteRepository/Markdown
         cd SiteRepository
         git add -A

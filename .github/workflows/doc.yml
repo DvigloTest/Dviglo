@@ -114,3 +114,18 @@ jobs:
         git add -A
         git diff-index --quiet HEAD || git commit -m "Обновление документации" # Создаём коммит, если есть изменения
         git push origin master
+
+    - name: Генерируем документацию из Markdown
+      run: |
+        git clone https://github.com/Dviglo/DvigloSiteGenerator
+        mkdir Build
+        cmake -B Build DvigloSiteGenerator
+        cmake --build Build
+        cp -R DvigloRepository/Docs/Markdown MarkdownSrc
+        cp -R DvigloSiteGenerator/___res MarkdownSrc
+        ./Result/DvigloSiteGenerator MarkdownSrc MarkdownDst
+        cp -R MarkdownDst SiteRepository/Markdown
+        cd SiteRepository
+        git add -A
+        git diff-index --quiet HEAD || git commit -m "Обновление Markdown документации" # Создаём коммит, если есть изменения
+        git push origin master
